@@ -1,0 +1,111 @@
+//server side
+
+import java.io.*;
+import java.net.*;
+
+public class FileServer {
+    public static void main(String[] args) {
+        int port = 5000; 
+        String filePath = "attendance.docx";  // File to be sent
+
+        try (ServerSocket serverSocket = new ServerSocket(port)) { // Start server on port 5000
+            System.out.println("Server is running and waiting for a connection...");
+
+            Socket clientSocket = serverSocket.accept();  // Accept client connection
+            System.out.println("Client connected: " + clientSocket.getInetAddress());
+
+            File file = new File(filePath);
+            if (!file.exists()) {  // Check if file exists
+                System.out.println("Error: File not found!");
+                clientSocket.close();
+                return;
+            }
+
+            // Open file input stream to read the file
+            try (FileInputStream fileInputStream = new FileInputStream(file);
+                 BufferedInputStream bufferedInputStream = new BufferedInputStream(fileInputStream);
+                 OutputStream outputStream = clientSocket.getOutputStream()) {
+
+                byte[] buffer = new byte[8192];  // Buffer to store file data
+                int bytesRead;
+
+                System.out.println("Sending file...");
+                while ((bytesRead = bufferedInputStream.read(buffer)) != -1) {
+                    outputStream.write(buffer, 0, bytesRead);  // Send file data
+                }
+                outputStream.flush(); 
+                System.out.println("File sent successfully.");
+            }
+
+            clientSocket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+//client side
+
+import java.io.*;
+import java.net.*;
+
+public class FileClient {
+    public static void main(String[] args) {
+        String serverAddress = "127.0.0.1";  // Connect to localhost
+        int port = 5000; 
+        String saveFilePath = "received_file.docx"; // Save received file
+
+        try (Socket socket = new Socket(serverAddress, port);
+             InputStream inputStream = socket.getInputStream();
+             FileOutputStream fileOutputStream = new FileOutputStream(saveFilePath);
+             BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(fileOutputStream)) {
+
+            byte[] buffer = new byte[8192]; 
+            int bytesRead;
+
+            System.out.println("Connected to Server! Receiving file...");
+            while ((bytesRead = inputStream.read(buffer)) != -1) {
+                bufferedOutputStream.write(buffer, 0, bytesRead);  // Write received data to file
+            }
+            bufferedOutputStream.flush(); 
+            System.out.println("File received and saved to: " + saveFilePath);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+
+//How to run
+javac FileServer.java FileClient.java
+java FileServer  # Run this first (Server)
+java FileClient  # Run this next (Client)
+
+//HMAC
+#include <stdio.h>
+#include <string.h>
+#include <openssl/hmac.h>
+
+// Function to print hash in hexadecimal format
+void print_hex(unsigned char *data, int len) {
+    for (int i = 0; i < len; i++) {
+        printf("%02x", data[i]); // Print byte in hex
+    }
+    printf("\n");
+}
+
+int main() {
+    const char *key = "secretkey";  // Secret key for HMAC
+    const char *message = "Hello, HMAC!";  // Message to hash
+    unsigned char hmac_result[EVP_MAX_MD_SIZE];  // Buffer for result
+    unsigned int len;
+
+    // Compute HMAC using SHA-256
+    HMAC(EVP_sha256(), key, strlen(key), (unsigned char*)message, strlen(message), hmac_result, &len);
+
+    // Print the computed HMAC
+    printf("HMAC (SHA-256) of the message: ");
+    print_hex(hmac_result, len);
+
+    return 0;
+}
